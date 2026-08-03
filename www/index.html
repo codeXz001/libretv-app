@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
     <title>LibreTV - 免费在线视频搜索与观看平台</title>
     <meta name="description" content="LibreTV是一个免费的在线视频搜索平台，无广告、安全，提供来自多个视频源的内容搜索与观看服务，无需注册即可使用。">
     <meta name="keywords" content="在线视频,免费视频,视频搜索,电影,电视剧,LibreTV">
@@ -409,6 +409,8 @@
 
     <!-- 应用内置密码配置（Capacitor 打包版） -->
     <script src="js/app-config.js"></script>
+    <!-- App 原生增强：返回键 / 分享（Capacitor 环境生效） -->
+    <script src="js/app-native.js"></script>
 
     <!-- 引入纯 JS sha256（HTTP 下依然可用） -->
     <script src="libs/sha256.min.js"></script>

@@ -6,6 +6,7 @@
   "scripts": {
     "cap": "cap",
     "sync": "cap sync",
+    "sync:web": "node scripts/sync-web.mjs",
     "android": "cap open android",
     "build:android": "cap sync && cd android && gradlew assembleRelease"
   },

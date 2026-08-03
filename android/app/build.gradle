@@ -24,14 +24,19 @@ android {
         }
     }
 
-    // Release 签名配置（只有 keystore.properties 存在时才启用）
+    // Release 签名配置（只有 keystore.properties 存在且 keystore 文件存在时才生效）
     signingConfigs {
         release {
             if (keystorePropertiesFile.exists()) {
-                storeFile file(keystoreProperties['storeFile'])
-                storePassword keystoreProperties['storePassword']
-                keyAlias keystoreProperties['keyAlias']
-                keyPassword keystoreProperties['keyPassword']
+                def store = file(keystoreProperties['storeFile'])
+                if (store.exists()) {
+                    storeFile store
+                    storePassword keystoreProperties['storePassword']
+                    keyAlias keystoreProperties['keyAlias']
+                    keyPassword keystoreProperties['keyPassword']
+                } else {
+                    println "⚠️ keystore 文件不存在（${store}），release 签名不可用"
+                }
             }
         }
     }
@@ -40,11 +45,12 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            // 启用签名（如果 keystore 已配置）
-            if (keystorePropertiesFile.exists()) {
+            // 仅当 keystore 文件真实存在时启用 release 签名；否则回退 debug 签名（可安装调试，不可上架）
+            def canSign = keystorePropertiesFile.exists() && file(keystoreProperties['storeFile']).exists()
+            if (canSign) {
                 signingConfig signingConfigs.release
             } else {
-                println "⚠️ keystore.properties 未找到，将使用 debug 签名（仅 debug 可用）"
+                println "⚠️ release 签名不可用，将使用 debug 签名（仅用于安装调试）"
             }
         }
     }
