@@ -11,8 +11,9 @@
     <link rel="apple-touch-icon" href="image/logo-black.png">
     <link rel="manifest" href="manifest.json">
 
-    <script src="libs/tailwindcss.min.js"></script>
-    <script src="js/version-check.js"></script>
+    <!-- Tailwind 运行时（本地文件）：defer 避免阻塞首屏解析；Play CDN 通过 MutationObserver 捕获后续动态 class -->
+    <script src="libs/tailwindcss.min.js" defer></script>
+    <script src="js/version-check.js" defer></script>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/player.css">
     
@@ -42,7 +43,7 @@
 
     <!-- 密码验证弹窗 -->
     <div id="passwordModal" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[65] transition-opacity duration-300">
-        <div class="bg-[#111] p-8 rounded-lg w-11/12 max-w-md border border-[#333] max-h-[90vh] flex flex-col">
+        <div class="bg-[#111] p-4 sm:p-8 rounded-lg w-11/12 max-w-md border border-[#333] max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 flex-none">
                 <h2 class="text-2xl font-bold gradient-text">访问验证</h2>
             </div>
@@ -132,14 +133,14 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 012-2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                         </svg>
                     </button>
-
+                    
                     <!-- 分享按钮（App 内系统分享面板 / Web 降级复制链接） -->
                     <button title="分享" onclick="shareVideo()" class="px-2 py-1 bg-[#222] hover:bg-[#333] border border-[#333] text-white rounded-lg transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 0a3 3 0 11-5.367 2.684" />
                         </svg>
                     </button>
-                    
+
                     <!-- 锁定控制按钮 - 始终显示在最右侧 -->
                     <button id="lockToggle" onclick="toggleControlsLock()" title="锁定控制" 
                             class="px-2 py-1 bg-[#222] hover:bg-[#333] border border-[#333] text-white rounded-lg transition flex-shrink-0">
@@ -201,9 +202,9 @@
         </div>
     </footer>
 
-    <!-- 换源模态框 -->
+    <!-- 换源模态框（p-4 sm:p-8 兼容移动端；id="modalOverlay" 供遮罩点击关闭） -->
     <div id="modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center transition-opacity duration-300 z-[10000]">
-        <div class="bg-[#111] p-8 rounded-lg w-11/12 max-w-4xl border border-[#333] max-h-[90vh] flex flex-col">
+        <div class="bg-[#111] p-4 sm:p-8 rounded-lg w-11/12 max-w-4xl border border-[#333] max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 flex-none">
                 <h2 id="modalTitle" class="text-2xl font-bold gradient-text break-words pr-4 max-w-[80%]"></h2>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-white text-2xl transition-colors flex-shrink-0">&times;</button>
@@ -217,16 +218,11 @@
 
     <!-- 添加 loading 提示框 -->
     <div id="loading" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[10001]">
-        <div class="bg-[#111] p-8 rounded-lg border border-[#333] flex items-center space-x-4">
+        <div class="bg-[#111] p-4 sm:p-8 rounded-lg border border-[#333] flex items-center space-x-4">
             <div class="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
             <p class="text-white text-lg">加载中...</p>
         </div>
     </div>
-
-    <!-- 应用内置密码配置（Capacitor 打包版） -->
-    <script src="js/app-config.js"></script>
-    <!-- App 原生增强：返回键 / 分享（Capacitor 环境生效） -->
-    <script src="js/app-native.js"></script>
 
     <!-- 引入纯 JS sha256（HTTP 下依然可用） -->
     <script src="libs/sha256.min.js"></script>
@@ -234,10 +230,12 @@
         // 保存原始 js‑sha256 实现，避免被 password.js 覆盖
         window._jsSha256 = window.sha256;
     </script>
-
+    
     <script src="libs/hls.min.js" crossorigin="anonymous"></script>
     <script src="libs/artplayer.min.js" crossorigin="anonymous"></script>
 
+    <script src="js/app-config.js"></script>
+    <script src="js/app-native.js"></script>
     <script src="js/config.js"></script>
     <script src="js/proxy-auth.js"></script>
     <script src="js/customer_site.js"></script>
@@ -250,9 +248,10 @@
     <script>
         // 创建全局环境变量对象
         window.__ENV__ = window.__ENV__ || {};
-
-        // Capacitor 打包版无服务端，置空，由 APP_PASSWORD_HASH 提供密码保护
-        window.__ENV__.PASSWORD = "";
+        
+        // 注入服务器端环境变量 (将由服务器端替换)
+        // PASSWORD 变量将在这里被服务器端注入
+        window.__ENV__.PASSWORD = "";  // App 内无服务端注入，走无密码模式
 
         // 修复 home 跳转
         document.addEventListener('DOMContentLoaded', function() {

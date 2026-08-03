@@ -251,29 +251,24 @@ function initializePageContent() {
     // 添加键盘快捷键事件监听
     document.addEventListener('keydown', handleKeyboardShortcuts);
 
-    // 添加页面离开事件监听，保存播放位置
-    window.addEventListener('beforeunload', saveCurrentProgress);
+    // 添加页面离开事件监听，保存播放位置（force 立即保存）
+    window.addEventListener('beforeunload', () => saveCurrentProgress(true));
 
-    // 新增：页面隐藏（切后台/切标签）时也保存
+    // 新增：页面隐藏（切后台/切标签）时也保存（force 立即保存）
     document.addEventListener('visibilitychange', function () {
         if (document.visibilityState === 'hidden') {
-            saveCurrentProgress();
+            saveCurrentProgress(true);
         }
     });
 
-    // 视频暂停时也保存
+    // 视频暂停时也保存（force 立即保存）
     const waitForVideo = setInterval(() => {
         if (art && art.video) {
-            art.video.addEventListener('pause', saveCurrentProgress);
+            art.video.addEventListener('pause', () => saveCurrentProgress(true));
 
-            // 新增：播放进度变化时节流保存
-            let lastSave = 0;
+            // 播放进度变化时节流保存（内部 10s 节流，避免高频写 localStorage）
             art.video.addEventListener('timeupdate', function() {
-                const now = Date.now();
-                if (now - lastSave > 5000) { // 每5秒最多保存一次
-                    saveCurrentProgress();
-                    lastSave = now;
-                }
+                saveCurrentProgress();
             });
 
             clearInterval(waitForVideo);
@@ -729,10 +724,10 @@ function initPlayer(videoUrl) {
         }
     });
 
-    // 添加双击全屏支持
+    // 添加双击全屏支持（用 dataset 标记防重复绑定，切换视频时元素重建则自然重新绑定）
     art.on('video:playing', () => {
-        // 绑定双击事件到视频容器
-        if (art.video) {
+        if (art.video && !art.video.dataset.dblclickBound) {
+            art.video.dataset.dblclickBound = '1';
             art.video.addEventListener('dblclick', () => {
                 art.fullscreen = !art.fullscreen;
                 art.play();
@@ -783,23 +778,36 @@ class CustomHlsJsLoader extends Hls.DefaultConfig.loader {
 }
 
 // 过滤可疑的广告内容
+// 2026-08-03 改进：不再删除 #EXT-X-DISCONTINUITY（会破坏正常流的码率切换/续播结构），
+// 改为按分段 URL 域名黑名单剔除广告分段（连同其前一行 EXTINF），其他行原样保留。
 function filterAdsFromM3U8(m3u8Content, strictMode = false) {
     if (!m3u8Content) return '';
 
-    // 按行分割M3U8内容
-    const lines = m3u8Content.split('\n');
-    const filteredLines = [];
+    // 广告域名/路径特征（命中即视为广告分段）
+    const adPatterns = [
+        /(?:^|[\/.])(?:ad|ads|adn|advert|adview|gg|gdt|adt)[0-9]*(?:[.\/])/i,
+        /(?:^|[\/.])(?:adsystem|adserver|adservice|advideo)[.\/]/i,
+        /(?:^|[\/.])(?:gdtimg|gdtv|ugdtimg)[.\/]/i,
+        /(?:^|[\/.])(?:v\.qq\.com[^\n]*advideo|t\.me[^\n]*ad)[^\n]*/i,
+    ];
 
+    const lines = m3u8Content.split('\n');
+    const out = [];
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-
-        // 只过滤#EXT-X-DISCONTINUITY标识
-        if (!line.includes('#EXT-X-DISCONTINUITY')) {
-            filteredLines.push(line);
+        const trimmed = line.trim();
+        // 只对真正的分段 URL 做广告判定（http 开头或相对路径）
+        const isSegmentUrl = trimmed.startsWith('http') || trimmed.startsWith('/');
+        if (isSegmentUrl && adPatterns.some(p => p.test(trimmed))) {
+            // 广告分段：连带移除其前一行（#EXTINF）
+            if (out.length && out[out.length - 1].trim().startsWith('#EXTINF')) {
+                out.pop();
+            }
+            continue;
         }
+        out.push(line);
     }
-
-    return filteredLines.join('\n');
+    return out.join('\n');
 }
 
 
@@ -864,6 +872,17 @@ function renderEpisodes() {
         return;
     }
 
+    // 阶段 3.1：事件委托（一次绑定，多次重渲染自动复用）
+    if (!episodesList.dataset.bound) {
+        episodesList.addEventListener('click', function (e) {
+            const btn = e.target.closest('.js-player-episode');
+            if (!btn) return;
+            const idx = parseInt(btn.dataset.index || '0', 10);
+            if (!isNaN(idx)) playEpisode(idx);
+        });
+        episodesList.dataset.bound = '1';
+    }
+
     const episodes = episodesReversed ? [...currentEpisodes].reverse() : currentEpisodes;
     let html = '';
 
@@ -872,10 +891,11 @@ function renderEpisodes() {
         const realIndex = episodesReversed ? currentEpisodes.length - 1 - index : index;
         const isActive = realIndex === currentEpisodeIndex;
 
+        // 阶段 3.1：用 data-* + 容器事件委托替代 onclick
         html += `
-            <button id="episode-${realIndex}" 
-                    onclick="playEpisode(${realIndex})" 
-                    class="px-4 py-2 ${isActive ? 'episode-active' : '!bg-[#222] hover:!bg-[#333] hover:!shadow-none'} !border ${isActive ? '!border-blue-500' : '!border-[#333]'} rounded-lg transition-colors text-center episode-btn">
+            <button id="episode-${realIndex}"
+                    class="px-4 py-2 ${isActive ? 'episode-active' : '!bg-[#222] hover:!bg-[#333] hover:!shadow-none'} !border ${isActive ? '!border-blue-500' : '!border-[#333]'} rounded-lg transition-colors text-center episode-btn js-player-episode"
+                    data-index="${realIndex}">
                 ${realIndex + 1}
             </button>
         `;
@@ -1226,11 +1246,19 @@ function startProgressSaveInterval() {
 }
 
 // 保存当前播放进度
-function saveCurrentProgress() {
+// 播放进度节流：常规保存至少间隔 10s；force=true 时（暂停/切后台/卸载）立即保存
+let lastProgressSaveTime = 0;
+const PROGRESS_SAVE_INTERVAL = 10000;
+
+function saveCurrentProgress(force = false) {
     if (!art || !art.video) return;
     const currentTime = art.video.currentTime;
     const duration = art.video.duration;
     if (!duration || currentTime < 1) return;
+
+    const now = Date.now();
+    if (!force && now - lastProgressSaveTime < PROGRESS_SAVE_INTERVAL) return;
+    lastProgressSaveTime = now;
 
     // 在localStorage中保存进度
     const progressKey = `videoProgress_${getVideoId()}`;
@@ -1450,7 +1478,7 @@ function renderResourceInfoBar() {
         <span>加载中...</span>
         <span class="resource-info-bar-videos">-</span>
       </div>
-      <button class="resource-switch-btn flex" id="switchResourceBtn" onclick="showSwitchResourceModal()">
+      <button class="resource-switch-btn flex js-show-switch-modal" id="switchResourceBtn">
         <span class="resource-switch-icon">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4v16m0 0l-6-6m6 6l6-6" stroke="#a67c2d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
@@ -1476,7 +1504,7 @@ function renderResourceInfoBar() {
         <span>${resourceName}</span>
         <span class="resource-info-bar-videos">${currentEpisodes.length} 个视频</span>
       </div>
-      <button class="resource-switch-btn flex" id="switchResourceBtn" onclick="showSwitchResourceModal()">
+      <button class="resource-switch-btn flex js-show-switch-modal" id="switchResourceBtn">
         <span class="resource-switch-icon">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4v16m0 0l-6-6m6 6l6-6" stroke="#a67c2d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
@@ -1593,6 +1621,25 @@ function formatSpeedDisplay(speedResult) {
     return `<span class="${className}">${icon} ${speed}ms${note}</span>`;
 }
 
+// 读取聚合组（app.js 聚合详情写入 localStorage 的同一影片多源列表），
+// 标题归一化匹配当前播放标题；不匹配或数据缺失时返回 null（回退标题搜索）。
+function getAggregatedSourcesForTitle(title) {
+    try {
+        const raw = localStorage.getItem('aggregatedSources');
+        if (!raw) return null;
+        const items = JSON.parse(raw);
+        if (!Array.isArray(items) || items.length === 0) return null;
+        const norm = (s) => String(s || '')
+            .toLowerCase()
+            .replace(/[\s\u3000()（）[\]【】《》·:：\-_]/g, '');
+        const titleNorm = norm(title);
+        const matched = items.some(it => norm(it.vod_name) === titleNorm);
+        return matched ? items : null;
+    } catch (e) {
+        return null;
+    }
+}
+
 async function showSwitchResourceModal() {
     const urlParams = new URLSearchParams(window.location.search);
     const currentSourceCode = urlParams.get('source');
@@ -1602,9 +1649,39 @@ async function showSwitchResourceModal() {
     const modalTitle = document.getElementById('modalTitle');
     const modalContent = document.getElementById('modalContent');
 
-    modalTitle.innerHTML = `<span class="break-words">${currentVideoTitle}</span>`;
+    // 遮罩点击关闭（移动端无 × 按钮场景也可取消；一次绑定）
+    if (!modal.dataset.overlayCloseBound) {
+        modal.dataset.overlayCloseBound = '1';
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeModal();
+        });
+    }
+
+    // textContent 而非 innerHTML，避免标题（来自 URL 参数）注入
+    modalTitle.textContent = currentVideoTitle;
     modalContent.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;grid-column:1/-1;">正在加载资源列表...</div>';
     modal.classList.remove('hidden');
+
+    // 阶段 3.1：资源切换卡片事件委托（一次绑定）
+    if (!modalContent.dataset.switchBound) {
+        modalContent.addEventListener('click', function (e) {
+            const card = e.target.closest('.js-switch-resource');
+            if (!card || card.dataset.current === '1') return;
+            const sourceKey = card.dataset.source || '';
+            const vodId = card.dataset.vodId || '';
+            if (sourceKey && vodId) switchToResource(sourceKey, vodId);
+        });
+        modalContent.dataset.switchBound = '1';
+    }
+
+    // 阶段 3.1："切换资源"按钮事件委托（容器级别）
+    if (!document.body.dataset.switchModalBound) {
+        document.body.addEventListener('click', function (e) {
+            const btn = e.target.closest('.js-show-switch-modal');
+            if (btn) showSwitchResourceModal();
+        });
+        document.body.dataset.switchModalBound = '1';
+    }
 
     // 搜索
     const resourceOptions = selectedAPIs.map((curr) => {
@@ -1618,20 +1695,46 @@ async function showSwitchResourceModal() {
         return { key: curr, name: '未知资源' };
     });
     let allResults = {};
-    await Promise.all(resourceOptions.map(async (opt) => {
-        let queryResult = await searchByAPIAndKeyWord(opt.key, currentVideoTitle);
-        if (queryResult.length == 0) {
-            return 
-        }
-        // 优先取完全同名资源，否则默认取第一个
-        let result = queryResult[0]
-        queryResult.forEach((res) => {
-            if (res.vod_name == currentVideoTitle) {
-                result = res;
+
+    // F1：优先复用聚合组（app.js 聚合详情写入的同一影片多源），免去按标题重复搜索
+    const aggItems = getAggregatedSourcesForTitle(currentVideoTitle);
+    if (aggItems && aggItems.length > 0) {
+        aggItems.forEach(it => {
+            if (it.source_code && it.vod_id) {
+                allResults[it.source_code] = {
+                    vod_id: it.vod_id,
+                    vod_name: it.vod_name || currentVideoTitle,
+                    vod_pic: it.vod_pic || ''
+                };
             }
-        })
-        allResults[opt.key] = result;
-    }));
+        });
+    } else {
+        await Promise.all(resourceOptions.map(async (opt) => {
+            let queryResult = await searchByAPIAndKeyWord(opt.key, currentVideoTitle);
+            if (queryResult.length == 0) {
+                return 
+            }
+            // 优先取完全同名资源，否则默认取第一个
+            let result = queryResult[0]
+            queryResult.forEach((res) => {
+                if (res.vod_name == currentVideoTitle) {
+                    result = res;
+                }
+            })
+            allResults[opt.key] = result;
+        }));
+    }
+
+    // 空态：没有任何可切换的资源时给出明确提示，避免空白弹窗
+    if (Object.keys(allResults).length === 0) {
+        modalContent.innerHTML = `
+            <div class="text-center py-12">
+                <div class="text-gray-400 text-lg mb-2">未找到可切换的资源</div>
+                <div class="text-gray-600 text-sm mb-6">可返回首页勾选其他资源源后重试，或检查网络连接</div>
+                <button onclick="closeModal()" class="px-5 py-2 bg-[#333] hover:bg-[#444] rounded-lg text-sm transition-colors">关闭</button>
+            </div>`;
+        return;
+    }
 
     // 更新状态显示：开始速率测试
     modalContent.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;grid-column:1/-1;">正在测试各资源速率...</div>';
@@ -1666,24 +1769,32 @@ async function showSwitchResourceModal() {
 
     // 渲染资源列表
     let html = '<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">';
-    
+
     for (const [sourceKey, result] of sortedResults) {
         if (!result) continue;
-        
+
         // 修复 isCurrentSource 判断，确保类型一致
         const isCurrentSource = String(sourceKey) === String(currentSourceCode) && String(result.vod_id) === String(currentVideoId);
         const sourceName = resourceOptions.find(opt => opt.key === sourceKey)?.name || '未知资源';
         const speedResult = speedResults[sourceKey] || { speed: -1, error: '未测试' };
-        
+
+        // 阶段 3.1：用 data-* + 容器事件委托替代 onclick
+        const safeSourceKey = String(sourceKey).replace(/"/g, '&quot;');
+        const safeVodId = String(result.vod_id).replace(/"/g, '&quot;');
+        const safeVodName = String(result.vod_name || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const safeVodPic = String(result.vod_pic || '').replace(/"/g, '&quot;');
+
         html += `
-            <div class="relative group ${isCurrentSource ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105 transition-transform'}" 
-                 ${!isCurrentSource ? `onclick="switchToResource('${sourceKey}', '${result.vod_id}')"` : ''}>
+            <div class="relative group ${isCurrentSource ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105 transition-transform js-switch-resource'}"
+                 data-source="${safeSourceKey}"
+                 data-vod-id="${safeVodId}"
+                 data-current="${isCurrentSource ? '1' : '0'}">
                 <div class="aspect-[2/3] rounded-lg overflow-hidden bg-gray-800 relative">
-                    <img src="${result.vod_pic}" 
-                         alt="${result.vod_name}"
+                    <img src="${safeVodPic}"
+                         alt="${safeVodName}"
                          class="w-full h-full object-cover"
                          onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNjY2IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3QgeD0iMyIgeT0iMyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiByeD0iMiIgcnk9IjIiPjwvcmVjdD48cGF0aCBkPSJNMjEgMTV2NGEyIDIgMCAwIDEtMiAySDVhMiAyIDAgMCAxLTItMnYtNCI+PC9wYXRoPjxwb2x5bGluZSBwb2ludHM9IjE3IDggMTIgMyA3IDgiPjwvcG9seWxpbmU+PHBhdGggZD0iTTEyIDN2MTIiPjwvcGF0aD48L3N2Zz4='">
-                    
+
                     <!-- 速率显示在图片右上角 -->
                     <div class="absolute top-1 right-1 speed-badge bg-black bg-opacity-75">
                         ${formatSpeedDisplay(speedResult)}
