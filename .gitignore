@@ -31,3 +31,14 @@ npm-debug.log*
 # 临时文件
 tmp/
 temp/
+
+# 打包脚本自动下载的便携版 JDK 17（约 180MB，勿提交）
+.jdk/
+
+# 打包脚本自动下载的本地 Android SDK（约 120MB，勿提交）
+.android-sdk/
+
+# 打包脚本运行产物
+build_apk.run.ps1
+build_log.txt
+launcher_log.txt
