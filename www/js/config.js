@@ -26,6 +26,18 @@ const SITE_CONFIG = {
 // 这些是经过测试可用的苹果 CMS V10 资源站
 // 失效的源会自动被前端跳过，无需手动删除
 const API_SITES = {
+    zuidapi: {
+        api: 'https://api.zuidapi.com/api.php/provide/vod',
+        name: '最大资源',
+    },
+    ruyi: {
+        api: 'https://cj.rycjapi.com/api.php/provide/vod',
+        name: '如意资源',
+    },
+    bfzy: {
+        api: 'https://bfzyapi.com/api.php/provide/vod',
+        name: '暴风资源',
+    },
     ffzy: {
         api: 'https://api.ffzyapi.com/api.php/provide/vod',
         name: '非凡资源',
@@ -42,10 +54,6 @@ const API_SITES = {
     guangsu: {
         api: 'https://api.guangsuapi.com/api.php/provide/vod',
         name: '光速资源',
-    },
-    bfzy: {
-        api: 'https://bfzyapi.com/api.php/provide/vod',
-        name: '暴风资源',
     },
     tyyszy: {
         api: 'https://tyyszy.com/api.php/provide/vod',
