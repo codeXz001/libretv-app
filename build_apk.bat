@@ -1,18 +1,11 @@
 @echo off
-chcp 65001 >nul 2>&1
 cd /d "%~dp0"
-echo [BUILD] Starting LibreTV App build (this window stays open)...
+echo launcher started %date% %time% > launcher_log.txt
+echo cwd=%cd% >> launcher_log.txt
+echo ============================================
+echo  LibreTV App build launcher
+echo  This window stays open until you close it.
+echo ============================================
 echo.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0build_apk.ps1"
-set BUILD_EXIT=%ERRORLEVEL%
-echo.
-echo ============================================================
-if %BUILD_EXIT%==0 (
-  echo  Build script finished (exit 0).
-) else (
-  echo  Build script exited with code %BUILD_EXIT%.
-  echo  Scroll up to see the error, or read build_log.txt.
-)
-echo  Press any key to close this window.
-echo ============================================================
-pause >nul
+powershell -NoExit -NoProfile -ExecutionPolicy Bypass -File "%~dp0build_apk.ps1"
+echo (powershell session ended) >> launcher_log.txt
