@@ -89,7 +89,7 @@ for (const f of FILES) {
     }
 
     // 2e. player.html：注入「分享」按钮（App 内走系统分享面板，Web 降级复制链接）
-    //     锚点用「锁定控制按钮」注释，插在它前面；已存在则跳过（幂等）
+    //     锚点用「<main」标签(播放器容器前)；已存在则跳过（幂等）
     if (f === 'player.html' && !html.includes('shareVideo()')) {
       const shareBtn =
         '                    <!-- 分享按钮（App 内系统分享面板 / Web 降级复制链接） -->\n' +
@@ -98,12 +98,14 @@ for (const f of FILES) {
         '                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 0a3 3 0 11-5.367 2.684" />\n' +
         '                        </svg>\n' +
         '                    </button>\n\n';
-      const anchor = '                    <!-- 锁定控制按钮';
+      const anchor = '    <main class="container mx-auto px-4 py-4">';
       if (html.includes(anchor)) {
-        html = html.replace(anchor, shareBtn + anchor);
+        // 插到 <main> 之后、播放器容器之前：放在页头标题行(分享按钮与返回并排)不合适，
+        // 这里直接放在播放器容器上方。
+        html = html.replace(anchor, anchor + '\n        <div class="flex justify-end mb-2">' + shareBtn + '        </div>');
         console.log('[适配] player.html 已注入分享按钮');
       } else {
-        console.warn('[警告] player.html 未找到分享按钮锚点（锁定控制按钮），本次未注入');
+        console.warn('[警告] player.html 未找到分享按钮锚点（<main>），本次未注入');
       }
     }
 

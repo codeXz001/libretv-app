@@ -78,9 +78,6 @@
             <div id="recentSearches" class="recent-searches" aria-label="最近搜索记录"></div>
         </div>
 
-        <!-- 第二行：分类 tab（由 home.js 动态生成） -->
-        <nav id="catTabs" class="cat-tabs-row" aria-label="视频分类"></nav>
-
         <!-- 视图① 影视 -->
         <section id="view-home" class="app-view active">
             <div id="homeFeed">
@@ -278,7 +275,6 @@
                         </svg>
                         <span class="gradient-text font-bold">LibreTV</span>
                     </div>
-                    <p class="text-gray-500 text-sm mt-2 text-center md:text-left">© 2025 LibreTV - 自由观影，畅享精彩</p>
                 </div>
 
                 <div class="text-center md:text-right">
@@ -436,9 +432,6 @@
         // ADMIN_PASSWORD 变量将在这里由服务器端注入
         window.__ENV__.ADMIN_PASSWORD = "";  // App 内无服务端注入
     </script>
-
-    <!-- 版本检测脚本 -->
-    <script src="js/version-check.js" defer></script>
 
     <!-- 添加弹窗和URL搜索参数处理脚本 -->
     <script src="js/index-page.js" defer></script>
