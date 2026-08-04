@@ -66,8 +66,9 @@ for (const f of FILES) {
       '<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">'
     );
 
-    // 2b. PASSWORD 占位 → 空（App 无服务端注入）
-    html = html.replace(/window\.__ENV__\.PASSWORD\s*=\s*"[^"]*";/, 'window.__ENV__.PASSWORD = "";  // App 内无服务端注入，走无密码模式');
+    // 2b. PASSWORD/ADMIN_PASSWORD 占位 → 空（App 无服务端注入，密码由 app-config.js 提供）
+    html = html.replace(/window\.__ENV__\.PASSWORD\s*=\s*"[^"]*";/, 'window.__ENV__.PASSWORD = "";  // App 内无服务端注入，走 app-config.js');
+    html = html.replace(/window\.__ENV__\.ADMIN_PASSWORD\s*=\s*"[^"]*";/, 'window.__ENV__.ADMIN_PASSWORD = "";  // App 内无服务端注入');
 
     // 2c. 移除 PWA 注册引用
     html = html.replace(/<script src="js\/pwa-register\.js"[^>]*><\/script>\s*\n?/g, '');
@@ -76,14 +77,14 @@ for (const f of FILES) {
     //     app-config.js（内置密码哈希，须在 config.js 之前）+ app-native.js（返回键/分享）
     if (!html.includes('js/app-config.js')) {
       html = html.replace(
-        '<script src="js/config.js">',
-        '<script src="js/app-config.js"></script>\n    <script src="js/config.js">'
+        /<script src="js\/config\.js"([^>]*)>/,
+        '<script src="js/app-config.js" defer></script>\n    <script src="js/config.js"$1>'
       );
     }
     if (!html.includes('js/app-native.js')) {
       html = html.replace(
-        '<script src="js/config.js">',
-        '<script src="js/app-native.js"></script>\n    <script src="js/config.js">'
+        /<script src="js\/config\.js"([^>]*)>/,
+        '<script src="js/app-native.js" defer></script>\n    <script src="js/config.js"$1>'
       );
     }
 
@@ -138,6 +139,7 @@ for (const f of ['index.html', 'player.html']) {
   check(f, h.includes('js/app-native.js'), '缺少 app-native.js 引用（返回键/分享将失效）');
   check(f, !h.includes('js/pwa-register.js'), '仍残留 pwa-register.js 引用');
   check(f, !h.includes('{{PASSWORD}}'), '仍残留 {{PASSWORD}} 占位符');
+  check(f, !h.includes('{{ADMIN_PASSWORD}}'), '仍残留 {{ADMIN_PASSWORD}} 占位符');
   check(f, h.includes('viewport-fit=cover'), 'viewport 未适配全面屏');
 }
 const playerHtml = existsSync(join(DST, 'player.html')) ? read(join(DST, 'player.html')) : '';
