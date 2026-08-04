@@ -478,14 +478,19 @@ try {
     $ErrorActionPreference = $prevEA
 
     if ($buildType -eq 'assembleRelease') {
-        $apk = 'android\app\build\outputs\apk\release\app-release.apk'
+        $apkDir = 'android\app\build\outputs\apk\release'
+        $apkPattern = 'LibreTV-v*-release.apk'
     } else {
-        $apk = 'android\app\build\outputs\apk\debug\app-debug.apk'
+        $apkDir = 'android\app\build\outputs\apk\debug'
+        $apkPattern = 'LibreTV-v*-debug.apk'
     }
-    $apkFull = Join-Path $root $apk
+    # 自定义输出名（build.gradle applicationVariants）：LibreTV-v{versionName}-{buildType}.apk
+    $apkFull = Get-ChildItem (Join-Path $root $apkDir) -Filter $apkPattern -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($apkFull) { $apkFull = $apkFull.FullName }
 
     # Authoritative success signal: the APK really exists on disk.
-    if (-not (Test-Path $apkFull)) {
+    if (-not $apkFull -or -not (Test-Path $apkFull)) {
         Write-Host ''
         Write-Host ('[ERROR] Build failed (gradle exit code ' + $code + ', no APK produced).') -ForegroundColor Red
         Write-Host ('Full log: ' + $logPath)
@@ -494,7 +499,7 @@ try {
 
     $sizeMb = [math]::Round((Get-Item $apkFull).Length / 1MB, 1)
     Say '============================================'
-    Say ('Build OK: ' + $apk)
+    Say ('Build OK: ' + $apkFull)
     Say ('Full path: ' + $apkFull)
     Say ('Size: ' + $sizeMb + ' MB')
     Say '============================================'

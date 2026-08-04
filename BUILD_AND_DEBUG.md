@@ -120,7 +120,7 @@ BUILD SUCCESSFUL
 
 APK 位置：
 ```
-f:/app/libretv-app/android/app/build/outputs/apk/release/app-release.apk
+f:/app/libretv-app/android/app/build/outputs/apk/release/LibreTV-v{versionName}-release.apk
 ```
 
 ---
@@ -160,7 +160,7 @@ gradlew.bat assembleRelease
 ### 4. 找到 APK
 
 ```
-f:/app/libretv-app/android/app/build/outputs/apk/release/app-release.apk
+f:/app/libretv-app/android/app/build/outputs/apk/release/LibreTV-v{versionName}-release.apk
 ```
 
 ---
@@ -179,7 +179,7 @@ f:/app/libretv-app/android/app/build/outputs/apk/release/app-release.apk
 - **USB 数据线**：连接电脑 → 把 APK 复制到手机存储
 - **微信/QQ**：发给自己 → 在手机上下载
 - **网盘**：上传到网盘 → 手机下载
-- **ADB**：`adb install app-release.apk`
+- **ADB**：`adb install LibreTV-v{versionName}-release.apk`
 
 ### 3. 安装
 

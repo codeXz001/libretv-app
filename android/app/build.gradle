@@ -54,6 +54,14 @@ android {
             }
         }
     }
+
+    // 自定义 APK 输出名：LibreTV-v{versionName}-{buildType}.apk
+    // （如 LibreTV-v1.0-debug.apk / LibreTV-v1.0-release.apk）
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "LibreTV-v${variant.versionName}-${variant.buildType.name}.apk"
+        }
+    }
 }
 
 repositories {

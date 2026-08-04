@@ -54,20 +54,22 @@ echo.
 echo === 打包成功 ===
 echo.
 
-set APK_PATH=app\build\outputs\apk\release\app-release.apk
-if exist "%APK_PATH%" (
+REM 自定义输出名（build.gradle applicationVariants）：LibreTV-v{versionName}-release.apk
+for /f "delims=" %%F in ('dir /b /o-d app\build\outputs\apk\release\LibreTV-v*-release.apk 2^>nul') do set "APK_FILE=%%F"
+if defined APK_FILE (
+    set "APK_PATH=app\build\outputs\apk\release\%APK_FILE%"
     echo APK 位置：%cd%\%APK_PATH%
     echo.
     for %%I in ("%APK_PATH%") do echo APK 大小：%%~zI 字节
     echo.
     echo 下一步：
-    echo   1. 把 app-release.apk 传到手机
+    echo   1. 把 %APK_FILE% 传到手机
     echo   2. 手机需打开"允许未知来源应用"
     echo   3. 点击 APK 文件安装
     echo   4. 首次启动需输入密码（密码即 generate-keystore 时设置的访问密码）
     echo.
 ) else (
-    echo [警告] 未在预期位置找到 APK，请手动查找 app-release.apk
+    echo [警告] 未在预期位置找到 APK，请手动查找 LibreTV-v*-release.apk
 )
 
 pause

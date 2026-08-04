@@ -266,7 +266,7 @@ BUILD SUCCESSFUL in 5m 32s
 APK 位置：
 
 ```
-F:\app\libretv-app\android\app\build\outputs\apk\release\app-release.apk
+F:\app\libretv-app\android\app\build\outputs\apk\release\LibreTV-v{versionName}-release.apk
 ```
 
 ---
