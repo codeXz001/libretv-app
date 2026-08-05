@@ -850,12 +850,17 @@ function initHomePage() {
     prewarmHomeCategories();
 }
 
-// 密码验证通过后（如切换到管理员模式）重新加载首页
+// 密码验证通过后重新加载首页：
+// 初始 DOMContentLoaded 时 loadCategory 会因密码未验证被中断(只渲染了骨架屏)，
+// 验证成功必须重载；管理员模式下若当前是普通分类,切到资源采集站分类。
 document.addEventListener('passwordVerified', function () {
-    if (homeCurrentCatId === 'adult') {
-        const isAdmin = typeof window.isAdminMode === 'function' && window.isAdminMode();
-        if (!isAdmin) loadCategory('movie');
+    const isAdmin = typeof window.isAdminMode === 'function' && window.isAdminMode();
+    if (homeCurrentCatId === 'adult' && !isAdmin) {
+        loadCategory('movie');
+        return;
     }
+    loadCategory(homeCurrentCatId);
+    prewarmHomeCategories();
 });
 
 document.addEventListener('DOMContentLoaded', initHomePage);

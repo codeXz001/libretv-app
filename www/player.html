@@ -25,7 +25,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 </head>
-<body>
+<body class="player-page">
     <!-- 密码验证弹窗 -->
     <div id="passwordModal" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[65] transition-opacity duration-300">
         <div class="bg-[#111] p-4 sm:p-8 rounded-lg w-11/12 max-w-md border border-[#333] max-h-[90vh] flex flex-col">
@@ -44,18 +44,10 @@
         </div>
     </div>
 
-    <main class="container mx-auto px-4 py-4">
-        <div class="flex justify-end mb-2">                    <!-- 分享按钮（App 内系统分享面板 / Web 降级复制链接） -->
-                    <button title="分享" onclick="shareVideo()" class="px-2 py-1 bg-[#222] hover:bg-[#333] border border-[#333] text-white rounded-lg transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 0a3 3 0 11-5.367 2.684" />
-                        </svg>
-                    </button>
-
-        </div>
-        <!-- 播放器部分 -->
-        <div id="playerContainer" class="player-container mb-4">
-            <div class="relative">
+    <!-- 播放器舞台：播放器 + 叠加返回按钮 -->
+    <div class="player-stage">
+        <div id="playerContainer" class="player-container">
+            <div class="player-frame">
                 <div id="player" class="player-placeholder">
                     <!-- Initial loading state before JavaScript loads -->
                     <div class="player-loading-overlay">
@@ -75,20 +67,65 @@
             </div>
         </div>
 
+        <!-- 返回按钮：悬浮于播放器左上角（毛玻璃圆钮） -->
+        <a href="#" id="goBack" onclick="goBack(event)" class="player-back-btn" aria-label="返回上一页">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6"/>
+            </svg>
+        </a>
+    </div>
+
+    <main class="player-main">
+        <!-- 信息浮条：片名 + 集数徽标 + 当前源 -->
+        <div class="player-meta">
+            <h1 id="videoTitle" class="player-title">正在加载...</h1>
+            <div class="player-meta-badges">
+                <span id="episodeInfo" class="meta-badge meta-badge-amber">第 1 集</span>
+                <span id="resourceName" class="meta-badge meta-badge-cyan">—</span>
+            </div>
+        </div>
+
+        <!-- 操作条：自动连播 / 倒序 / 分享 / 全屏 -->
+        <div class="player-actions">
+            <label class="action-toggle">
+                <span class="action-label">自动连播</span>
+                <label class="switch">
+                    <input type="checkbox" id="autoplayToggle">
+                    <span class="slider"></span>
+                </label>
+            </label>
+            <button onclick="toggleEpisodeOrder()" class="action-btn" id="orderBtn" aria-label="倒序排列">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9M3 12h5m0 0l-3-3m3 3l-3 3M13 16h8m-4-3l4 3-4 3"/>
+                </svg>
+                <span id="orderText">倒序</span>
+            </button>
+            <button title="分享" onclick="shareVideo()" class="action-btn" aria-label="分享">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684z"/>
+                </svg>
+                <span>分享</span>
+            </button>
+        </div>
+
         <!-- 可切换源：当前源信息 + 源选项列表（点击直接切换） -->
-        <div class="player-container flex justify-between py-2 px-4 mb-2 bg-gray-700" id="resourceInfoBarContainer">
+        <div id="resourceInfoBarContainer" class="player-source-bar">
             <!-- 由 player.js 动态渲染 -->
         </div>
 
         <!-- 分集选择 -->
-        <div class="player-container">
+        <section class="player-episodes">
+            <div class="episodes-head">
+                <h2 class="episodes-title">选集</h2>
+                <span class="episodes-count" id="episodesCount"></span>
+            </div>
             <div class="episode-grid" id="episodesGrid">
-                <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2" id="episodesList">
+                <div class="episodes-list" id="episodesList">
                     <!-- 集数将在这里动态加载 -->
                     <div class="col-span-full text-center text-gray-400 py-8">加载中...</div>
                 </div>
             </div>
-        </div>
+        </section>
     </main>
 
     <!-- 添加 loading 提示框 -->
@@ -97,6 +134,14 @@
             <div class="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
             <p class="text-white text-lg">加载中...</p>
         </div>
+    </div>
+
+    <!-- 快捷键提示浮层 -->
+    <div id="shortcutHint" class="shortcut-hint">
+        <svg id="shortcutIcon" class="shortcut-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5-5 5M6 7l5 5-5 5"/>
+        </svg>
+        <span id="shortcutText">快进</span>
     </div>
 
     <!-- 引入纯 JS sha256（HTTP 下依然可用）；defer 不阻塞首屏解析，
