@@ -154,14 +154,18 @@ function resolvePlayUrl(baseUrl, relativeUrl) {
     try { return new URL(relativeUrl, baseUrl).toString(); } catch { return relativeUrl; }
 }
 // 把 m3u8 内容中的分片/密钥/映射 URL 重写为代理地址(与 proxy-core/m3u8.mjs 等价)
+// 注意:后端代理返回的内容里分片已重写为 /proxy/<encoded> 相对路径,
+// 这些行直接跳过——再次解析会基于源站域名产生双层嵌套代理 URL,导致分片 404。
 function rewriteM3u8ToProxy(content, baseUrl) {
     if (!content || typeof content !== 'string') return content;
     let out = content.replace(/^([^#][^\r\n]*)$/gm, (line) => {
         const url = line.trim();
         if (!url) return line;
+        if (url.startsWith('/proxy/')) return line; // 后端已重写,不再二次包装
         return toProxyUrl(resolvePlayUrl(baseUrl, url));
     });
     out = out.replace(/URI="([^"]+)"/g, (match, uri) => {
+        if (uri.startsWith('/proxy/')) return match;
         return `URI="${toProxyUrl(resolvePlayUrl(baseUrl, uri))}"`;
     });
     return out;
